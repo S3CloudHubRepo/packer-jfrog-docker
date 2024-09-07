@@ -1,0 +1,43 @@
+name: Packer Docker Build
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Setup Packer
+      uses: hashicorp/setup-packer@v3
+      with:
+        packer_version: 'latest'
+
+    - name: Initialize Packer
+      run: packer init .
+
+    - name: Validate Packer Configuration
+      run: packer validate packer.pkr.hcl
+
+    - name: Build Docker Image with Packer
+      run: packer build packer.pkr.hcl
+
+    - name: Log in to JFrog Artifactory Docker Registry
+      run: |
+        echo ${{ secrets.JFROG_PASSWORD }} | docker login ${{ secrets.JFROG_URL }} --username ${{ secrets.JFROG_USERNAME }} --password-stdin
+
+    - name: Build and Push Docker Image
+      run: |
+        docker push ${{ secrets.JFROG_URL }}/s3cloudhub-example-docker-local/docker-example:latest
+        docker push ${{ secrets.JFROG_URL }}/s3cloudhub-example-docker-local/docker-example:v1.0.0
+
+    - name: Logout from JFrog Artifactory
+      run: docker logout ${{ secrets.JFROG_URL }}
